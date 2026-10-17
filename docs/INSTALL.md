@@ -25,7 +25,7 @@ Do at least one of these:
 
 ## 3. Download and verify
 
-1. Download `ANCX777.apbx` from the [latest release](../../releases/latest).
+1. Download `ANCX777.apbx` from the [latest release](https://github.com/wakgimang11t-bot/ANCX777/releases/latest).
 2. Download the matching `ANCX777.apbx.sha256` file too.
 3. Verify the hash:
 

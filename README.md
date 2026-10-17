@@ -83,7 +83,7 @@ ANCX777 does not redistribute a modified Windows image, so it stays within the [
 
 1. Read the [install guide](docs/INSTALL.md).
 2. Create a **System Restore point** or back up important data first.
-3. Download `ANCX777.apbx` from [Releases](../../releases/latest).
+3. Download `ANCX777.apbx` from [Releases](https://github.com/wakgimang11t-bot/ANCX777/releases/latest).
 4. Verify the checksum against the attached `.sha256` file.
 5. Run `AME Wizard Beta.exe` and drag the `.apbx` into the Playbooks column.
 6. Pick your options, run it, reboot.
