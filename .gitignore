@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Playbook build output
+*.apbx
+*.apbx.tmp
+*.sha256
+src/release-zip/
+
+# Generated release body (CI only)
+release-body.md
+
+# Editor / tooling
+src/playbook/VS Workspace.code-workspace
+*.code-workspace
+.vscode/*
+!.vscode/settings.json

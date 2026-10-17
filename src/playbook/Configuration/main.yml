@@ -1,0 +1,638 @@
+---
+# ANCX777 Playbook - performance and privacy
+# Entry file for AME Wizard. Actions run elevated (SYSTEM / TrustedInstaller) unless a
+# different context is requested with `runas:`. Anything tagged with `option:` only runs
+# when the matching choice in the playbook's Feature Pages is selected.
+actions:
+  # ===========================================================================
+  #  INIT
+  # ===========================================================================
+  - !writeStatus: {status: 'Initializing'}
+  - !cmd: {command: 'if not exist "%ProgramData%\ANCX777\Logs" mkdir "%ProgramData%\ANCX777\Logs"', wait: true, errorAction: Ignore}
+  - !writeStatus: {status: 'Closing conflicting system processes'}
+  - !taskKill: {name: 'explorer', errorAction: Ignore}
+  - !taskKill: {name: 'ShellExperienceHost', errorAction: Ignore}
+  - !taskKill: {name: 'StartMenuExperienceHost', errorAction: Ignore}
+  - !taskKill: {name: 'SearchApp', errorAction: Ignore}
+  - !taskKill: {name: 'SearchHost', errorAction: Ignore}
+  - !taskKill: {name: 'SearchUI', errorAction: Ignore}
+  - !taskKill: {name: 'RuntimeBroker', errorAction: Ignore}
+  - !taskKill: {name: 'TextInputHost', errorAction: Ignore}
+  - !taskKill: {name: 'backgroundTaskHost', errorAction: Ignore}
+  - !taskKill: {name: 'Widgets', errorAction: Ignore}
+
+  # ===========================================================================
+  #  POWER
+  # ===========================================================================
+  - !writeStatus: {status: 'Applying Power Settings'}
+  - !powerShell:
+      wait: true
+      errorAction: Ignore
+      command: >-
+        powercfg /x monitor-timeout-ac 0;
+        powercfg /x disk-timeout-ac 0;
+        powercfg /x standby-timeout-ac 0;
+        powercfg /x hibernate-timeout-ac 0;
+        powercfg /x monitor-timeout-dc 0;
+        powercfg /x disk-timeout-dc 0;
+        powercfg /x standby-timeout-dc 0;
+        powercfg /x hibernate-timeout-dc 0;
+  - !cmd: {command: 'powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61', wait: true, errorAction: Ignore}
+  - !cmd: {command: 'powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61', wait: true, errorAction: Ignore}
+  - !powerShell:
+      wait: true
+      errorAction: Ignore
+      command: >-
+        powercfg /setacvalueindex scheme_current sub_processor PERFINCPOL 2;
+        powercfg /setacvalueindex scheme_current sub_processor PERFDECPOL 1;
+        powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMIN 100;
+        powercfg /setactive scheme_current;
+  - !cmd: {command: 'bcdedit /set useplatformclock false', wait: true, errorAction: Ignore}
+  - !cmd: {command: 'bcdedit /set disabledynamictick yes', wait: true, errorAction: Ignore}
+
+  # ===========================================================================
+  #  BRANDING / WALLPAPER
+  # ===========================================================================
+  - !writeStatus: {status: 'Applying ANCX777 Branding'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation', value: 'Manufacturer', type: REG_SZ, data: 'ANCX777'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation', value: 'Model', type: REG_SZ, data: 'ANCX777'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation', value: 'SupportURL', type: REG_SZ, data: 'ANCX777'}
+
+  - !cmd: {exeDir: true, command: 'xcopy "Windows" "%windir%" /E /I /Y', runas: trustedInstaller, wait: true, errorAction: Ignore}
+  - !powerShell: {command: '.\SetWallpaper.ps1 -Mode Desktop -ImagePath $env:systemroot\Web\Wallpaper\ANCX777\img0.jpg', exeDir: true, wait: true, runas: currentUserElevated, errorAction: Ignore, option: 'change-wallpaper'}
+  - !powerShell: {command: '.\SetWallpaper.ps1 -Mode LockScreen -ImagePath $env:systemroot\Web\Wallpaper\ANCX777\img0.jpg', exeDir: true, wait: true, runas: currentUserElevated, errorAction: Ignore, option: 'change-wallpaper'}
+  # 'keep-wallpaper' is intentionally a no-op - keeping the current wallpaper means changing nothing.
+  # winver prints RegisteredOwner first, then RegisteredOrganization on the next line,
+  # so this value is what shows up under "Windows User".
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion', value: 'RegisteredOrganization', type: REG_SZ, data: 'ACNX+ Optimize', option: 'add-branding'}
+  # 'keep-branding' is intentionally a no-op - it leaves the registered organization as it is.
+
+  # ===========================================================================
+  #  VISUALS
+  # ===========================================================================
+  - !writeStatus: {status: 'Applying Visual Settings'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowTaskViewButton', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarMn', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'Hidden', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'HideFileExt', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search', value: 'SearchboxTaskbarMode', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize', value: 'SystemUsesLightTheme', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize', value: 'AppsUseLightTheme', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize', value: 'EnableTransparency', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer', value: 'ShowRecommendations', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarDa', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowCopilotButton', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarSmallIcons', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'Start_Layout', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked', value: '{e2bf9676-5f8f-435c-97eb-11607a5bedf7}', type: REG_SZ, data: ''}
+  - !registryValue: {path: 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked', value: '{e2bf9676-5f8f-435c-97eb-11607a5bedf7}', type: REG_SZ, data: ''}
+  - !taskKill: {name: 'explorer', errorAction: Ignore}
+  - !run: {exe: 'explorer.exe', runas: 'currentUser', wait: false, errorAction: Ignore}
+
+  # ===========================================================================
+  #  ONEDRIVE
+  # ===========================================================================
+  - !writeStatus: {status: 'Removing OneDrive', option: 'remove-onedrive'}
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-onedrive'
+      errorAction: Ignore
+      command: >-
+        Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue;
+        Get-AppxPackage -Name '*OneDrive*' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue;
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*OneDrive*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue;
+        Get-ChildItem (Join-Path $env:SystemDrive 'Users\*\AppData\Local\Microsoft\OneDrive') -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+  - !registryValue: {path: 'HKLM\SOFTWARE\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}', value: 'System.IsPinnedToNameSpaceTree', type: REG_DWORD, data: '0', option: 'remove-onedrive'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Classes\WOW6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}', value: 'System.IsPinnedToNameSpaceTree', type: REG_DWORD, data: '0', option: 'remove-onedrive'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{018D5C66-4533-4307-9B53-224DE2ED1FE6}', operation: delete, option: 'remove-onedrive'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{018D5C66-4533-4307-9B53-224DE2ED1FE6}', operation: delete, option: 'remove-onedrive'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive', value: 'DisableFileSyncNGSC', type: REG_DWORD, data: '1', option: 'remove-onedrive'}
+  - !powerShell:
+      wait: true
+      option: 'remove-onedrive'
+      errorAction: Ignore
+      command: >-
+        $bases = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace');
+        Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^S-1-5-21-' } | ForEach-Object { $bases += ('Registry::' + $_.Name + '\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace') };
+        foreach ($b in $bases) { if (Test-Path $b) { Get-ChildItem $b -ErrorAction SilentlyContinue | ForEach-Object { $d = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).'(default)'; if ($d -like '*OneDrive*') { Remove-Item $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue } } } }
+
+  # ===========================================================================
+  #  DEFENDER
+  # ===========================================================================
+  - !writeStatus: {status: 'Disabling Defender', option: 'disable-defender'}
+  - !cmd: {command: 'reg.exe add "HKLM\SOFTWARE\Microsoft\Windows Defender\Features" /v TamperProtection /t REG_DWORD /d 0 /f', runas: trustedInstaller, wait: true, errorAction: Ignore, option: 'disable-defender'}
+  - !writeStatus: {status: 'Disabling Defender: Services', option: 'disable-defender'}
+  - !service: {name: 'WinDefend', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'WdFilter', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'WdNisDrv', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'WdNisSvc', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'WdBoot', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'MDCoreSvc', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'Sense', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'SecurityHealthService', operation: change, startup: 4, option: 'disable-defender'}
+  - !service: {name: 'wscsvc', operation: change, startup: 4, option: 'disable-defender'}
+  - !writeStatus: {status: 'Disabling Defender: Policies', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender', value: 'DisableAntiSpyware', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender', value: 'DisableAntiVirus', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableRealtimeMonitoring', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet', value: 'SpynetReporting', type: REG_DWORD, data: '0', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet', value: 'SpyNetReporting', type: REG_DWORD, data: '0', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet', value: 'DisableBlockAtFirstSeen', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableBehaviorMonitoring', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableOnAccessProtection', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableScanOnRealtimeEnable', type: REG_DWORD, data: '1', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\SmartScreen', value: 'ConfigureAppInstallControlEnabled', type: REG_DWORD, data: '0', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\SmartScreen', value: 'ConfigureAppInstallControl', type: REG_SZ, data: 'Anywhere', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer', value: 'SmartScreenEnabled', type: REG_SZ, data: 'Off', option: 'disable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\smartscreen.exe', value: 'Debugger', type: REG_SZ, data: '%SYSTEMROOT%\System32\taskkill.exe', option: 'disable-defender'}
+  - !service: {name: 'smartscreen', operation: change, startup: 4, option: 'disable-defender'}
+  # Undo path, so re-running with "Keep Defender" brings Windows Security back.
+  - !writeStatus: {status: 'Enabling Defender', option: 'enable-defender'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender', operation: delete, option: 'enable-defender'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\smartscreen.exe', operation: delete, option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer', value: 'SmartScreenEnabled', type: REG_SZ, data: 'Warn', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Features', value: 'TamperProtection', type: REG_DWORD, data: '5', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableBehaviorMonitoring', type: REG_DWORD, data: '0', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableOnAccessProtection', type: REG_DWORD, data: '0', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection', value: 'DisableScanOnRealtimeEnable', type: REG_DWORD, data: '0', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet', value: 'SpyNetReporting', type: REG_DWORD, data: '2', option: 'enable-defender'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet', value: 'DisableBlockAtFirstSeen', type: REG_DWORD, data: '0', option: 'enable-defender'}
+  # sc.exe is used for these because boot and system starts cannot be expressed with a plain startup value.
+  - !powerShell:
+      wait: true
+      runas: trustedInstaller
+      errorAction: Ignore
+      option: 'enable-defender'
+      command: >-
+        $startup = @{ WinDefend = 'auto'; WdFilter = 'system'; WdNisDrv = 'system'; WdNisSvc = 'demand'; WdBoot = 'boot';
+                      MDCoreSvc = 'demand'; Sense = 'demand'; SecurityHealthService = 'demand'; wscsvc = 'auto'; smartscreen = 'auto' };
+        foreach ($name in $startup.Keys) { & sc.exe config $name 'start=' $startup[$name] 2>$null | Out-Null }
+  - !powerShell:
+      wait: true
+      runas: trustedInstaller
+      errorAction: Ignore
+      option: 'enable-defender'
+      command: >-
+        Start-Service -Name 'WinDefend' -ErrorAction SilentlyContinue;
+        Set-MpPreference -DisableRealtimeMonitoring $false -DisableBehaviorMonitoring $false -DisableBlockAtFirstSeen $false -DisableIOAVProtection $false -DisableScriptScanning $false -MAPSReporting Advanced -SubmitSamplesConsent SendSafeSamples -ErrorAction SilentlyContinue
+
+  # ===========================================================================
+  #  UAC
+  # ===========================================================================
+  - !writeStatus: {status: 'Configuring UAC', option: 'enable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'EnableLUA', type: REG_DWORD, data: '1', option: 'enable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'ConsentPromptBehaviorAdmin', type: REG_DWORD, data: '5', option: 'enable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'PromptOnSecureDesktop', type: REG_DWORD, data: '1', option: 'enable-uac'}
+  - !writeStatus: {status: 'Configuring UAC', option: 'disable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'EnableLUA', type: REG_DWORD, data: '0', option: 'disable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'ConsentPromptBehaviorAdmin', type: REG_DWORD, data: '0', option: 'disable-uac'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System', value: 'PromptOnSecureDesktop', type: REG_DWORD, data: '0', option: 'disable-uac'}
+
+  # ===========================================================================
+  #  TELEMETRY / PRIVACY
+  # ===========================================================================
+  - !writeStatus: {status: 'Reducing Telemetry'}
+  - !service: {name: 'DiagTrack', operation: change, startup: 4}
+  - !service: {name: 'dmwappushservice', operation: change, startup: 4}
+  - !service: {name: 'diagnosticshub.standardcollector.service', operation: change, startup: 4}
+  - !service: {name: 'diagsvc', operation: change, startup: 4}
+  - !service: {name: 'WerSvc', operation: change, startup: 4}
+  - !service: {name: 'PcaSvc', operation: change, startup: 4}
+  - !service: {name: 'DPS', operation: change, startup: 4}
+  - !service: {name: 'WdiServiceHost', operation: change, startup: 4}
+  - !service: {name: 'WdiSystemHost', operation: change, startup: 4}
+  - !service: {name: 'RetailDemo', operation: change, startup: 4}
+  - !service: {name: 'MapsBroker', operation: change, startup: 4}
+  - !service: {name: 'lfsvc', operation: change, startup: 4}
+  - !service: {name: 'SharedAccess', operation: change, startup: 4}
+  - !service: {name: 'PhoneSvc', operation: change, startup: 4}
+  - !service: {name: 'wisvc', operation: change, startup: 4}
+  - !service: {name: 'WMPNetworkSvc', operation: change, startup: 4}
+  - !service: {name: 'RemoteRegistry', operation: change, startup: 4}
+  - !service: {name: 'seclogon', operation: change, startup: 4}
+  - !service: {name: 'Fax', operation: change, startup: 4}
+  - !service: {name: 'SEMgrSvc', operation: change, startup: 4}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection', value: 'AllowTelemetry', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection', value: 'AllowTelemetry', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection', value: 'DoNotShowFeedbackNotifications', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection', value: 'AllowCommercialDataPipeline', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableWindowsConsumerFeatures', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableSoftLanding', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SilentInstalledAppsEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SubscribedContent-338388Enabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SubscribedContent-338389Enabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SubscribedContent-310093Enabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SystemPaneSuggestionsEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo', value: 'Enabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo', value: 'DisabledByGroupPolicy', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location', value: 'Value', type: REG_SZ, data: 'Deny'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location', value: 'Value', type: REG_SZ, data: 'Deny'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors', value: 'DisableLocation', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowCortana', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowCloudSearch', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowSearchToUseLocation', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'DisableWebSearch', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'ConnectedSearchUseWeb', type: REG_DWORD, data: '0'}
+  - !writeStatus: {status: 'Disabling CEIP'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\SQMClient\Windows', value: 'CEIPEnable', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\SQMClient\Windows', value: 'CEIPEnable', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Siuf\Rules', value: 'NumberOfSIUFInPeriod', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat', value: 'AITEnable', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat', value: 'DisableInventory', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat', value: 'DisableUAR', type: REG_DWORD, data: '1'}
+
+  # ===========================================================================
+  #  GAMING / PERFORMANCE
+  # ===========================================================================
+  - !writeStatus: {status: 'Optimizing for Gaming'}
+  - !registryValue: {path: 'HKCU\System\GameConfigStore', value: 'GameDVR_Enabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\System\GameConfigStore', value: 'GameDVR_FSEBehaviorMode', type: REG_DWORD, data: '2'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR', value: 'AppCaptureEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\GameDVR', value: 'AllowGameDVR', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\GameBar', value: 'AutoGameModeEnabled', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\GameBar', value: 'ShowStartupPanel', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers', value: 'HwSchMode', type: REG_DWORD, data: '2'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers', value: 'DisableOverlays', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\Dwm', value: 'OverlayTestMode', type: REG_DWORD, data: '5'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile', value: 'SystemResponsiveness', type: REG_DWORD, data: '10'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games', value: 'GPU Priority', type: REG_DWORD, data: '8'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games', value: 'Priority', type: REG_DWORD, data: '6'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games', value: 'Scheduling Category', type: REG_SZ, data: 'High'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games', value: 'SFIO Priority', type: REG_SZ, data: 'High'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management', value: 'LargeSystemCache', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management', value: 'DisablePagingExecutive', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management', value: 'ClearPageFileAtShutdown', type: REG_DWORD, data: '0'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\FaultTolerantHeap'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\FaultTolerantHeap', value: 'FTHEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\FaultTolerantHeap', value: 'FTHEnabled', type: REG_DWORD, data: '0'}
+  - !writeStatus: {status: 'Optimizing Input'}
+  - !registryValue: {path: 'HKCU\Control Panel\Mouse', value: 'MouseSpeed', type: REG_SZ, data: '0'}
+  - !registryValue: {path: 'HKCU\Control Panel\Mouse', value: 'MouseThreshold1', type: REG_SZ, data: '0'}
+  - !registryValue: {path: 'HKCU\Control Panel\Mouse', value: 'MouseThreshold2', type: REG_SZ, data: '0'}
+  - !registryValue: {path: 'HKCU\Control Panel\Mouse', value: 'MouseSensitivity', type: REG_SZ, data: '10'}
+  - !registryValue: {path: 'HKCU\Control Panel\Keyboard', value: 'KeyboardDelay', type: REG_SZ, data: '0'}
+  - !registryValue: {path: 'HKCU\Control Panel\Keyboard', value: 'KeyboardSpeed', type: REG_SZ, data: '31'}
+
+  # ===========================================================================
+  #  NETWORK
+  # ===========================================================================
+  - !writeStatus: {status: 'Optimizing Network'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile', value: 'NetworkThrottlingIndex', type: REG_DWORD, data: 'ffffffff'}
+  - !powerShell:
+      wait: true
+      errorAction: Ignore
+      command: >-
+        $t = @(
+          'netsh int tcp set global autotuninglevel=normal',
+          'netsh int tcp set global rss=enabled',
+          'netsh int tcp set global ecncapability=disabled',
+          'netsh int tcp set global timestamps=disabled',
+          'netsh int tcp set heuristics disabled',
+          'netsh int tcp set supplemental internet congestionprovider=ctcp'
+        );
+        foreach ($c in $t) { Invoke-Expression $c 2>$null | Out-Null }
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization', value: 'DODownloadMode', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config', value: 'DownloadMode', type: REG_DWORD, data: '0'}
+
+  # ===========================================================================
+  #  SEARCH / UPDATE / MISC
+  # ===========================================================================
+  - !writeStatus: {status: 'Optimizing Windows Search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowIndexingEncryptedStoresOrItems', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows Search', value: 'SetupCompletedSuccessfully', type: REG_DWORD, data: '1'}
+  - !writeStatus: {status: 'Configuring Windows Update'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU', value: 'NoAutoUpdate', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate', value: 'ExcludeWUDriversInQualityUpdate', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings', value: 'RestartNotificationsAllowed2', type: REG_DWORD, data: '0'}
+  - !writeStatus: {status: 'Disabling DMA Remapping'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\DmaSecurity', value: 'AllowAllDrivers', type: REG_DWORD, data: '1'}
+
+  # ===========================================================================
+  #  REMOVE EDGE
+  # ===========================================================================
+  # 'keep-edge' is intentionally a no-op - removal deletes files and cannot be undone.
+  - !writeStatus: {status: 'Removing Microsoft Edge', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles(x86)%\Microsoft\Edge', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles(x86)%\Microsoft\EdgeCore', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles(x86)%\Microsoft\EdgeUpdate', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles(x86)%\Microsoft\EdgeWebView', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles%\Microsoft\Edge', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles%\Microsoft\EdgeCore', option: 'remove-edge'}
+  - !file: {path: '%ProgramFiles%\Microsoft\EdgeUpdate', option: 'remove-edge'}
+  - !file: {path: '%windir%\SystemApps\Microsoft.MicrosoftEdge_8wekyb3d8bbwe', option: 'remove-edge'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk', option: 'remove-edge'}
+  - !file: {path: '%SystemDrive%\Users\Public\Desktop\Microsoft Edge.lnk', option: 'remove-edge'}
+  - !file: {path: '%windir%\system32\MicrosoftEdgeBCHost.exe', option: 'remove-edge'}
+  - !file: {path: '%windir%\system32\MicrosoftEdgeCP.exe', option: 'remove-edge'}
+  - !file: {path: '%windir%\system32\MicrosoftEdgeSH.exe', option: 'remove-edge'}
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-edge'
+      errorAction: Ignore
+      command: >-
+        Get-AppxPackage -Name '*MicrosoftEdge*' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue;
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Edge*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+  - !registryKey: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge', operation: delete, option: 'remove-edge'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge', operation: delete, option: 'remove-edge'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe', value: '', type: REG_SZ, data: '', option: 'remove-edge'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate', value: 'Allowsxs', type: REG_DWORD, data: '0', option: 'remove-edge'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\EdgeUpdate', value: 'DoNotUpdateToEdgeWithChromium', type: REG_DWORD, data: '1', option: 'remove-edge'}
+
+  # ===========================================================================
+  #  REMOVE TEAMS / WSL
+  # ===========================================================================
+  - !writeStatus: {status: 'Removing Microsoft Teams', option: 'remove-teams'}
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-teams'
+      errorAction: Ignore
+      command: >-
+        Get-AppxPackage -Name '*MicrosoftTeams*','*Teams*' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue;
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Teams*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+  - !file: {path: '%ProgramFiles(x86)%\Microsoft\Teams', option: 'remove-teams'}
+  - !file: {path: '%ProgramFiles%\Microsoft\Teams', option: 'remove-teams'}
+
+  - !writeStatus: {status: 'Removing WSL', option: 'remove-wsl'}
+  - !cmd: {command: 'dism /online /disable-feature /featurename:Microsoft-Windows-Subsystem-Linux /norestart', wait: true, errorAction: Ignore, option: 'remove-wsl'}
+  - !cmd: {command: 'dism /online /disable-feature /featurename:VirtualMachinePlatform /norestart', wait: true, errorAction: Ignore, option: 'remove-wsl'}
+
+  # ===========================================================================
+  #  PRINTING
+  # ===========================================================================
+  - !writeStatus: {status: 'Disabling Printing', option: 'disable-printing'}
+  - !service: {name: 'Spooler', operation: change, startup: 4, option: 'disable-printing'}
+  - !service: {name: 'PrintNotify', operation: change, startup: 4, option: 'disable-printing'}
+  - !cmd: {command: 'dism /online /disable-feature /featurename:Printing-Foundation-Features /norestart', wait: true, errorAction: Ignore, option: 'disable-printing'}
+  - !powerShell:
+      wait: true
+      option: 'disable-printing'
+      errorAction: Ignore
+      command: >-
+        Get-Service -Name 'Spooler' -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue;
+        foreach ($t in @('\Microsoft\Windows\Printing\EduPrintProv','\Microsoft\Windows\Printing\PrinterCleanupTask')) { schtasks /change /tn $t /disable 2>$null | Out-Null }
+  # Undo path, so re-running with "Keep Printing" restores the spooler.
+  - !writeStatus: {status: 'Restoring Printing', option: 'keep-printing'}
+  - !cmd: {command: 'dism /online /enable-feature /featurename:Printing-Foundation-Features /norestart', wait: true, errorAction: Ignore, option: 'keep-printing'}
+  - !service: {name: 'Spooler', operation: change, startup: 2, option: 'keep-printing'}
+  - !service: {name: 'PrintNotify', operation: change, startup: 3, option: 'keep-printing'}
+  - !powerShell:
+      wait: true
+      errorAction: Ignore
+      option: 'keep-printing'
+      command: >-
+        Start-Service -Name 'Spooler' -ErrorAction SilentlyContinue;
+        foreach ($t in @('\Microsoft\Windows\Printing\EduPrintProv','\Microsoft\Windows\Printing\PrinterCleanupTask')) { schtasks /change /tn $t /enable 2>$null | Out-Null }
+
+  # ===========================================================================
+  #  APPX REMOVALS
+  # ===========================================================================
+  - !writeStatus: {status: 'Removing AppX Packages'}
+  - !appx: {operation: clearCache, name: '*Microsoft.Windows.SecHealthUI*'}
+  - !appx: {operation: clearCache, name: '*StartMenuExperienceHost*'}
+  - !appx: {operation: clearCache, name: '*Windows.Search*'}
+  - !appx: {operation: clearCache, name: '*Client.CBS*'}
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      errorAction: Ignore
+      command: >-
+        $p = @('*Clipchamp*','*BingNews*','*BingWeather*','*GetHelp*','*Getstarted*','*WindowsFeedbackHub*','*MicrosoftOfficeHub*','*Office.OneNote*','*People*','*SkypeApp*','*Sway*','*Todos*','*WindowsMaps*','*WindowsAlarms*','*ZuneMusic*','*ZuneVideo*','*MixedReality.Portal*','*YourPhone*','*Microsoft3DViewer*','*MicrosoftStickyNotes*','*RawImageExtension*','*QuickAssist*','*Microsoft.PowerAutomate*','*WindowsCommunicationsApps*','*News*','*Solitaire*','*WebExperience*','*WebMediaExtensions*','*MicrosoftEdge*');
+        foreach ($n in $p) { Get-AppxPackage -Name $n -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue }
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $d = $_.DisplayName; ($p | Where-Object { $d -like $_ }) } | ForEach-Object { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue } | Out-Null
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-photos'
+      errorAction: Ignore
+      command: >-
+        Get-AppxPackage -Name '*Microsoft.Windows.Photos*' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue;
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Photos*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-xbox'
+      errorAction: Ignore
+      command: >-
+        $x = @('*Xbox*','*GamingApp*','*XboxGamingOverlay*','*XboxGameOverlay*','*XboxIdentityProvider*','*XboxSpeechToTextOverlay*');
+        foreach ($n in $x) { Get-AppxPackage -Name $n -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue };
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Xbox*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+  - !powerShell:
+      wait: true
+      runas: currentUserElevated
+      option: 'remove-ai'
+      errorAction: Ignore
+      command: >-
+        Get-AppxPackage -Name '*Microsoft.Copilot*','*Microsoft.Windows.Ai*','*Microsoft.WindowsAI*','*Windows.AI*' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue;
+        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Copilot*' -or $_.DisplayName -like '*WindowsAI*' } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+  - !registryValue: {path: 'HKCU\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot', value: 'TurnOffWindowsCopilot', type: REG_DWORD, data: '1', option: 'remove-ai'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot', value: 'TurnOffWindowsCopilot', type: REG_DWORD, data: '1', option: 'remove-ai'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', value: 'DisableAIDataAnalysis', type: REG_DWORD, data: '1', option: 'remove-ai'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', value: 'AllowRecallEnablement', type: REG_DWORD, data: '0', option: 'remove-ai'}
+
+  # ===========================================================================
+  #  BLOCK REINSTALLS
+  # ===========================================================================
+  - !writeStatus: {status: 'Blocking App Reinstalls'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableWindowsConsumerFeatures', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'PreInstalledAppsEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'OemPreInstalledAppsEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SilentInstalledAppsEnabled', type: REG_DWORD, data: '0'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableConsumerAccountStateContent', type: REG_DWORD, data: '1'}
+
+  # ===========================================================================
+  #  TASKBAR CLEANUP
+  # ===========================================================================
+  - !writeStatus: {status: 'Cleaning Up Taskbar and Start Menu', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Outlook (new).lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Outlook.lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\OneDrive.lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Microsoft Teams.lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Skype.lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Xbox.lnk', option: 'cleanup-taskbar'}
+  - !file: {path: '%AppData%\Microsoft\Windows\Start Menu\Programs\OneDrive.lnk', option: 'cleanup-taskbar'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowTaskViewButton', type: REG_DWORD, data: '0', option: 'cleanup-taskbar'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarDa', type: REG_DWORD, data: '0', option: 'cleanup-taskbar'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarMn', type: REG_DWORD, data: '0', option: 'cleanup-taskbar'}
+
+  # ===========================================================================
+  #  SCHEDULED TASKS
+  # ===========================================================================
+  - !writeStatus: {status: 'Optimizing Scheduled Tasks'}
+  - !powerShell:
+      wait: true
+      errorAction: Ignore
+      command: >-
+        $tasks = @(
+          '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser',
+          '\Microsoft\Windows\Application Experience\ProgramDataUpdater',
+          '\Microsoft\Windows\Application Experience\StartupAppTask',
+          '\Microsoft\Windows\Application Experience\PcaPatchDbTask',
+          '\Microsoft\Windows\Autochk\Proxy',
+          '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
+          '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip',
+          '\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask',
+          '\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector',
+          '\Microsoft\Windows\Feedback\Siuf\DmClient',
+          '\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload',
+          '\Microsoft\Windows\Windows Error Reporting\QueueReporting',
+          '\Microsoft\Windows\Windows Media Sharing\UpdateLibrary',
+          '\Microsoft\Windows\CloudExperienceHost\CreateObjectTask',
+          '\Microsoft\Windows\Maps\MapsToastTask',
+          '\Microsoft\Windows\Maps\MapsUpdateTask',
+          '\Microsoft\Windows\PI\Sqm-Tasks',
+          '\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem',
+          '\Microsoft\Windows\Shell\FamilySafetyMonitor',
+          '\Microsoft\Windows\Shell\FamilySafetyRefreshTask'
+        );
+        foreach ($t in $tasks) { schtasks /change /tn $t /disable 2>$null | Out-Null }
+
+  # ===========================================================================
+  #  SEARCH INDEXING
+  # ===========================================================================
+  - !writeStatus: {status: 'Disabling Search Indexing', option: 'disable-search'}
+  - !service: {name: 'WSearch', operation: change, startup: 4, option: 'disable-search'}
+  - !cmd: {command: 'sc stop WSearch', wait: true, errorAction: Ignore, option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowCortana', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowSearchToUseLocation', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'AllowCloudSearch', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'DisableWebSearch', type: REG_DWORD, data: '1', option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'ConnectedSearchUseWeb', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', value: 'EnableDynamicContentInWSB', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search', value: 'BingSearchEnabled', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search', value: 'CortanaConsent', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\SearchSettings', value: 'IsDynamicSearchBoxEnabled', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowRecent', type: REG_DWORD, data: '0', option: 'disable-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowFrequent', type: REG_DWORD, data: '0', option: 'disable-search'}
+  # Undo path: drop the policies outright so Windows returns to its own defaults.
+  - !writeStatus: {status: 'Restoring Search', option: 'keep-search'}
+  - !registryKey: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search', operation: delete, option: 'keep-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search', value: 'BingSearchEnabled', type: REG_DWORD, data: '1', option: 'keep-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\SearchSettings', value: 'IsDynamicSearchBoxEnabled', type: REG_DWORD, data: '1', option: 'keep-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowRecent', type: REG_DWORD, data: '1', option: 'keep-search'}
+  - !registryValue: {path: 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ShowFrequent', type: REG_DWORD, data: '1', option: 'keep-search'}
+  - !service: {name: 'WSearch', operation: change, startup: 2, option: 'keep-search'}
+  - !cmd: {command: 'sc start WSearch', wait: true, errorAction: Ignore, option: 'keep-search'}
+
+  # ===========================================================================
+  #  SNAPPY VISUALS
+  # ===========================================================================
+  - !writeStatus: {status: 'Applying Snappy Visual Effects', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects', value: 'VisualFXSetting', type: REG_DWORD, data: '2', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarAnimations', type: REG_DWORD, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ListviewAlphaSelect', type: REG_DWORD, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ListviewShadow', type: REG_DWORD, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'DragFullWindows', type: REG_SZ, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop\WindowMetrics', value: 'MinAnimate', type: REG_SZ, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\DWM', value: 'EnableAeroPeek', type: REG_DWORD, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', value: 'EnableTransparency', type: REG_DWORD, data: '0', option: 'snappy-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ExtendedUIHoverTime', type: REG_DWORD, data: '1', option: 'snappy-visuals'}
+  # Undo path: back to Windows' stock "let Windows choose" visual profile.
+  - !writeStatus: {status: 'Restoring Visual Effects', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects', value: 'VisualFXSetting', type: REG_DWORD, data: '0', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarAnimations', type: REG_DWORD, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ListviewAlphaSelect', type: REG_DWORD, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ListviewShadow', type: REG_DWORD, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'DragFullWindows', type: REG_SZ, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop\WindowMetrics', value: 'MinAnimate', type: REG_SZ, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\DWM', value: 'EnableAeroPeek', type: REG_DWORD, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize', value: 'EnableTransparency', type: REG_DWORD, data: '1', option: 'keep-visuals'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ExtendedUIHoverTime', type: REG_DWORD, data: '0', option: 'keep-visuals'}
+
+  # ===========================================================================
+  #  SYSMAIN / PREFETCH
+  # ===========================================================================
+  - !writeStatus: {status: 'Disabling SysMain', option: 'disable-sysmain'}
+  - !service: {name: 'SysMain', operation: change, startup: 4, option: 'disable-sysmain'}
+  - !cmd: {command: 'sc stop SysMain', wait: true, errorAction: Ignore, option: 'disable-sysmain'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters', value: 'EnablePrefetcher', type: REG_DWORD, data: '0', option: 'disable-sysmain'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters', value: 'EnableSuperfetch', type: REG_DWORD, data: '0', option: 'disable-sysmain'}
+  # Undo path, so re-running with "Keep SysMain" restores prefetching.
+  - !writeStatus: {status: 'Restoring SysMain', option: 'keep-sysmain'}
+  - !service: {name: 'SysMain', operation: change, startup: 2, option: 'keep-sysmain'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters', value: 'EnablePrefetcher', type: REG_DWORD, data: '3', option: 'keep-sysmain'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters', value: 'EnableSuperfetch', type: REG_DWORD, data: '3', option: 'keep-sysmain'}
+  - !cmd: {command: 'sc start SysMain', wait: true, errorAction: Ignore, option: 'keep-sysmain'}
+
+  # ===========================================================================
+  #  HIBERNATION / FAST STARTUP
+  # ===========================================================================
+  - !writeStatus: {status: 'Disabling Hibernation and Fast Startup', option: 'disable-hibernate'}
+  - !cmd: {command: 'powercfg /h off', wait: true, errorAction: Ignore, option: 'disable-hibernate'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power', value: 'HiberbootEnabled', type: REG_DWORD, data: '0', option: 'disable-hibernate'}
+  # Undo path, so re-running with "Keep Hibernate" turns both back on.
+  - !writeStatus: {status: 'Restoring Hibernation and Fast Startup', option: 'keep-hibernate'}
+  - !cmd: {command: 'powercfg /h on', wait: true, errorAction: Ignore, option: 'keep-hibernate'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power', value: 'HiberbootEnabled', type: REG_DWORD, data: '1', option: 'keep-hibernate'}
+
+  # ===========================================================================
+  #  RESPONSIVENESS TWEAKS
+  # ===========================================================================
+  - !writeStatus: {status: 'Applying Responsiveness Tweaks'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize', value: 'StartupDelayInMSec', type: REG_DWORD, data: '0', option: 'perf-startup-delay'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'MenuShowDelay', type: REG_SZ, data: '0', option: 'perf-fast-menus'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'TaskbarAnimations', type: REG_DWORD, data: '0', option: 'perf-fast-menus'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced', value: 'ExtendedUIHoverTime', type: REG_DWORD, data: '1', option: 'perf-fast-menus'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling', value: 'PowerThrottlingOff', type: REG_DWORD, data: '1', option: 'perf-power-throttling'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications', value: 'GlobalUserDisabled', type: REG_DWORD, data: '1', option: 'perf-background-apps'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\Search', value: 'BackgroundAppGlobalToggle', type: REG_DWORD, data: '0', option: 'perf-background-apps'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy', value: 'LetAppsRunInBackground', type: REG_DWORD, data: '2', option: 'perf-background-apps'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SoftLandingEnabled', type: REG_DWORD, data: '0', option: 'perf-tips-suggestions'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'RotatingLockScreenOverlayEnabled', type: REG_DWORD, data: '0', option: 'perf-tips-suggestions'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SubscribedContent-338387Enabled', type: REG_DWORD, data: '0', option: 'perf-tips-suggestions'}
+  - !registryValue: {path: 'HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', value: 'SubscribedContent-353698Enabled', type: REG_DWORD, data: '0', option: 'perf-tips-suggestions'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableWindowsSpotlightFeatures', type: REG_DWORD, data: '1', option: 'perf-tips-suggestions'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent', value: 'DisableCloudOptimizedContent', type: REG_DWORD, data: '1', option: 'perf-tips-suggestions'}
+  - !cmd: {command: 'fsutil behavior set disablelastaccess 1', wait: true, errorAction: Ignore, option: 'perf-last-access'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl', value: 'Win32PrioritySeparation', type: REG_DWORD, data: '38', option: 'perf-cpu-priority'}
+  - !registryValue: {path: 'HKCU\Control Panel\Accessibility\StickyKeys', value: 'Flags', type: REG_SZ, data: '506', option: 'perf-accessibility-prompts'}
+  - !registryValue: {path: 'HKCU\Control Panel\Accessibility\Keyboard Response', value: 'Flags', type: REG_SZ, data: '122', option: 'perf-accessibility-prompts'}
+  - !registryValue: {path: 'HKCU\Control Panel\Accessibility\ToggleKeys', value: 'Flags', type: REG_SZ, data: '58', option: 'perf-accessibility-prompts'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager', value: 'ShippedWithReserves', type: REG_DWORD, data: '0', option: 'perf-reserved-storage'}
+  - !cmd: {command: 'DISM /Online /Set-ReservedStorageState /State:Disabled', wait: true, errorAction: Ignore, option: 'perf-reserved-storage'}
+  - !powerShell:
+      wait: true
+      option: 'perf-clean-temp'
+      errorAction: Ignore
+      command: >-
+        foreach ($t in @($env:TEMP, (Join-Path $env:SystemRoot 'Temp'))) { if (Test-Path -LiteralPath $t) { Get-ChildItem -LiteralPath $t -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue } }
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control', value: 'WaitToKillServiceTimeout', type: REG_SZ, data: '2000', option: 'perf-shutdown-hangs'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'HungAppTimeout', type: REG_SZ, data: '1000', option: 'perf-shutdown-hangs'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'WaitToKillAppTimeout', type: REG_SZ, data: '2000', option: 'perf-shutdown-hangs'}
+  - !registryValue: {path: 'HKCU\Control Panel\Desktop', value: 'AutoEndTasks', type: REG_SZ, data: '1', option: 'perf-shutdown-hangs'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance', value: 'MaintenanceDisabled', type: REG_DWORD, data: '1', option: 'perf-disable-maintenance'}
+  - !powerShell:
+      wait: true
+      option: 'perf-disable-maintenance'
+      errorAction: Ignore
+      command: >-
+        schtasks /change /tn '\Microsoft\Windows\TaskScheduler\Idle Maintenance' /disable 2>$null | Out-Null
+
+  # ===========================================================================
+  #  GPU OVERLAYS (NVIDIA Alt+Z / ShadowPlay, Steam, Discord)
+  # ===========================================================================
+  - !writeStatus: {status: 'Ensuring GPU Overlays Work', option: 'keep-nvidia-overlay'}
+  # Never block the graphics overlay plane every in-game overlay hooks into.
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers', value: 'DisableOverlays', type: REG_DWORD, data: '0', option: 'keep-nvidia-overlay'}
+  # NVIDIA container services must stay available for Alt+Z / instant replay / screenshot.
+  - !service: {name: 'NvContainerLocalSystem', operation: change, startup: 2, option: 'keep-nvidia-overlay'}
+  - !service: {name: 'NVDisplay.ContainerLocalSystem', operation: change, startup: 2, option: 'keep-nvidia-overlay'}
+  - !service: {name: 'NvContainerNetworkService', operation: change, startup: 3, option: 'keep-nvidia-overlay'}
+  # Keep the capture / recording stack from being disabled.
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR', value: 'AppCaptureEnabled', type: REG_DWORD, data: '1', option: 'keep-nvidia-overlay'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR', value: 'HistoricalCaptureEnabled', type: REG_DWORD, data: '1', option: 'keep-nvidia-overlay'}
+
+  # ===========================================================================
+  #  FINALIZE
+  # ===========================================================================
+  - !writeStatus: {status: 'Synchronizing System Time'}
+  - !cmd: {command: 'w32tm /resync /force', wait: true, errorAction: Ignore}
+  - !writeStatus: {status: 'Cleaning Up Leftovers'}
+  - !file: {path: '%SystemDrive%\Users\Public\Desktop\Microsoft Edge.lnk'}
+  - !file: {path: '%SystemDrive%\Users\Public\Desktop\Microsoft Edge.url'}
+  - !file: {path: '%ProgramData%\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk'}
+  - !writeStatus: {status: 'Finalizing'}
+  - !cmd: {command: 'DISM /Online /Cleanup-Image /StartComponentCleanup /ResetBase', wait: true, errorAction: Ignore}
+  - !writeStatus: {status: 'Done. A reboot is recommended.'}

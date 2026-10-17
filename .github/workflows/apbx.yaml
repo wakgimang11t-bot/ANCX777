@@ -1,0 +1,59 @@
+name: Build ANCX777 playbook
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: pip install pyyaml
+
+      - name: Validate playbook sources
+        run: python src/dependencies/validate.py
+
+      - name: Build .apbx
+        shell: pwsh
+        run: ./src/dependencies/New-Playbook.ps1
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANCX777-apbx
+          path: src/release-zip/*
+          if-no-files-found: error
+
+      - name: Generate release body
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: ./src/dependencies/New-ReleaseNotes.ps1 -Tag "$env:GITHUB_REF_NAME"
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ANCX777 ${{ github.ref_name }}
+          body_path: release-body.md
+          files: src/release-zip/*
+          fail_on_unmatched_files: true

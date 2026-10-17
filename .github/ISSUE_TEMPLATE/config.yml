@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: AME Wizard support
+    url: https://docs.amelabs.net
+    about: Problems with AME Wizard itself — playbook format, requirements, verification — are handled by Ameliorated.
+  - name: Question about a tweak
+    url: https://github.com/wakgimang11t-bot/ANCX777/discussions
+    about: Ask before opening an issue — most "is this normal?" questions get answered here.

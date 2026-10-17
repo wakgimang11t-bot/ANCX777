@@ -1,0 +1,95 @@
+name: Bug report
+description: Report a tweak that breaks a feature, or an option that does nothing
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please fill in as much as you can —
+        without your Windows build and log, most reports cannot be acted on.
+
+  - type: input
+    id: windows-build
+    attributes:
+      label: Windows version and build
+      description: Run `winver` and paste the full version string.
+      placeholder: "Windows 11 Pro 23H2, build 22631.4460"
+    validations:
+      required: true
+
+  - type: input
+    id: ame-version
+    attributes:
+      label: AME Wizard version
+      description: Shown in the AME Wizard window.
+      placeholder: "0.8.4"
+    validations:
+      required: true
+
+  - type: input
+    id: playbook-version
+    attributes:
+      label: ANCX777 version
+      description: The release you installed, e.g. `0.777`.
+      placeholder: "0.777"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: clean-install
+    attributes:
+      label: Was Windows a clean install?
+      options:
+        - "Yes — freshly installed before running ANCX777"
+        - "No — an existing, long-used install"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the problem. Which feature stopped working, or which option did nothing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Selected these options: ...
+        2. Ran the playbook
+        3. Opened ...
+        4. Saw ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: AME log
+      description: |
+        Attach `%ProgramData%\AME\Logs\Log.yml` from after the failed run.
+        Drag the file into this box to upload it.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same problem
+          required: true
+        - label: I can reproduce this after a reboot
+          required: true

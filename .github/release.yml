@@ -1,0 +1,20 @@
+# Used by GitHub's own "auto-generate release notes" feature.
+# The release workflow builds its body from docs/RELEASE_TEMPLATE.md instead,
+# but this keeps a manually drafted release tidy too.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Tweaks
+      labels:
+        - enhancement
+    - title: Bug fixes
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Other changes
+      labels:
+        - '*'
